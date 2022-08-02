@@ -82,30 +82,36 @@ def prepare_arguments(parser):
 
 def list_profiles(profiles, active_profile, unformatted=False, active=False):
 
-    entry_format = '@{pf}-@| @{cf}%s@|' if not unformatted else '%s'
-    entry_active_format = entry_format + (' (@{yf}active@|)' if not unformatted else '')
+    entry_format = '%s' if unformatted else '@{pf}-@| @{cf}%s@|'
+    entry_active_format = entry_format + (
+        '' if unformatted else ' (@{yf}active@|)'
+    )
+
 
     ret = []
     if len(profiles) > 0:
-        if not active:
+        if active:
+            ret += (
+                [active_profile]
+                if unformatted
+                else [clr(entry_active_format % active_profile)]
+            )
+
+        else:
             if not unformatted:
                 ret += [clr('[profile] Available profiles:')]
             for p in profiles:
-                if p == active_profile:
-                    ret += [clr(entry_active_format % p)]
-                else:
-                    ret += [clr(entry_format % p)]
-        else:
-            if not unformatted:
-                ret += [clr(entry_active_format % active_profile)]
-            else:
-                ret += [active_profile]
-    else:
-        if not unformatted:
-            ret += [clr(
-                '[profile] This workspace has no metadata profiles. Any '
-                'configuration settings will automatically by applied to a new '
-                'profile called `default`.')]
+                ret += (
+                    [clr(entry_active_format % p)]
+                    if p == active_profile
+                    else [clr(entry_format % p)]
+                )
+
+    elif not unformatted:
+        ret += [clr(
+            '[profile] This workspace has no metadata profiles. Any '
+            'configuration settings will automatically by applied to a new '
+            'profile called `default`.')]
 
     return '\n'.join(ret)
 
@@ -170,8 +176,10 @@ def main(opts):
                 active_profile = get_active_profile(ctx.workspace)
                 print(clr('[profile] Activated catkin metadata profile: @{cf}%s@|' % active_profile))
             else:
-                print('catkin profile: error: Profile `%s` does not exist in workspace `%s`.' %
-                      (opts.name, ctx.workspace))
+                print(
+                    f'catkin profile: error: Profile `{opts.name}` does not exist in workspace `{ctx.workspace}`.'
+                )
+
                 return 1
 
             profiles = get_profile_names(ctx.workspace)
@@ -196,8 +204,10 @@ def main(opts):
                     set_active_profile(ctx.workspace, opts.new_name)
                 print(clr('[profile] Renamed profile @{cf}%s@| to @{cf}%s@|' % (opts.current_name, opts.new_name)))
             else:
-                print('catkin profile: error: Profile `%s` does not exist in workspace `%s`.' %
-                      (opts.current_name, ctx.workspace))
+                print(
+                    f'catkin profile: error: Profile `{opts.current_name}` does not exist in workspace `{ctx.workspace}`.'
+                )
+
                 return 1
 
             profiles = get_profile_names(ctx.workspace)
@@ -207,15 +217,19 @@ def main(opts):
         elif opts.subcommand == 'remove':
             for name in opts.name:
                 if name == active_profile:
-                    print('Profile `%s` is currently active. Re-setting active profile to `%s`.'
-                          % (name, DEFAULT_PROFILE_NAME))
+                    print(
+                        f'Profile `{name}` is currently active. Re-setting active profile to `{DEFAULT_PROFILE_NAME}`.'
+                    )
+
                     set_active_profile(ctx.workspace, DEFAULT_PROFILE_NAME)
 
                 if name in profiles:
                     remove_profile(ctx.workspace, name)
                 else:
-                    print('catkin profile: error: Profile `%s` does not exist in workspace `%s`.' %
-                          (name, ctx.workspace))
+                    print(
+                        f'catkin profile: error: Profile `{name}` does not exist in workspace `{ctx.workspace}`.'
+                    )
+
                     return 1
 
                 print(clr('[profile] Removed profile: @{rf}%s@|' % name))
@@ -225,7 +239,7 @@ def main(opts):
 
     except IOError as exc:
         # Usually happens if workspace is already underneath another catkin_tools workspace
-        print('error: could not %s catkin profile: %s' % (opts.subcommand, exc.message))
+        print(f'error: could not {opts.subcommand} catkin profile: {exc.message}')
         return 1
 
     return 0

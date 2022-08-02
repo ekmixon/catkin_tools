@@ -175,9 +175,9 @@ def main(opts):
                                  package_template=package_template,
                                  rosdistro=opts.rosdistro,
                                  newfiles={})
-            print('Successfully created package files in %s.' % target_path)
+            print(f'Successfully created package files in {target_path}.')
     except ValueError as vae:
-        print(str(vae))
+        print(vae)
         return 1
 
     return 0

@@ -63,24 +63,22 @@ def argument_preprocessor(args):
 
     # Get leading optional arguments
     for arg in list(raw_args):
-        if arg.startswith('-'):
-            args.append(arg)
-            raw_args.pop(0)
-        else:
+        if not arg.startswith('-'):
             # Done parsing options
             break
 
+        args.append(arg)
+        raw_args.pop(0)
     # Get envs
     envs = {}
     for arg in list(raw_args):
         env_match = re.match('(.+?)=(.+)', arg)
-        if env_match is not None and len(env_match.groups()) == 2:
-            envs.update(dict([env_match.groups()]))
-            raw_args.pop(0)
-        else:
+        if env_match is None or len(env_match.groups()) != 2:
             # Done parsing envs
             break
 
+        envs |= dict([env_match.groups()])
+        raw_args.pop(0)
     # Get command
     cmd = raw_args
 
@@ -98,7 +96,7 @@ def main(opts):
 
     # Get the initial environment
     if not opts.ignore_environment:
-        environ.update(os.environ)
+        environ |= os.environ
 
     # Update environment from stdin
     if opts.stdin:

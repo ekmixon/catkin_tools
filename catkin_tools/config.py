@@ -101,7 +101,7 @@ def get_verb_aliases(path=catkin_config_path):
                 if isinstance(value, str):
                     # Parse using shlex
                     parsed_value = cmd_split(value)
-                elif isinstance(value, list) or isinstance(value, type(None)):
+                elif isinstance(value, (list, type(None))):
                     # Take plainly
                     parsed_value = value
                 else:

@@ -106,7 +106,7 @@ class temporary_directory(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.delete and self.temp_path and os.path.exists(self.temp_path):
-            print('Deleting temporary testind directory: %s' % self.temp_path)
+            print(f'Deleting temporary testind directory: {self.temp_path}')
             shutil.rmtree(self.temp_path)
         if self.original_cwd and os.path.exists(self.original_cwd):
             os.chdir(self.original_cwd)
@@ -151,7 +151,7 @@ def assert_cmd_success(cmd, **kwargs):
     """
     print(">>>", cmd, kwargs)
     (r, out, err) = run(cmd, **kwargs)
-    print("<<<", str(out))
+    print("<<<", out)
     assert r == 0, "cmd failed with result %s:\n %s " % (r, str(cmd))
     return out
 
@@ -164,7 +164,7 @@ def assert_cmd_failure(cmd, **kwargs):
     """
     print(">>>", cmd, kwargs)
     (r, out, err) = run(cmd, withexitstatus=True, **kwargs)
-    print("<<<", str(out))
+    print("<<<", out)
     assert 0 != r, "cmd succeeded, but it should fail: %s result=%u\noutput=\n%s" % (cmd, r, out)
     return out
 

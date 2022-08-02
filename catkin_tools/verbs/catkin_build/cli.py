@@ -183,7 +183,7 @@ def dry_run(context, packages, no_deps, start_with):
         packages_to_be_built = topological_order_packages(dict(packages_to_be_built))
     # Print packages
     log("Packages to be built:")
-    max_name_len = str(max([len(pkg.name) for pth, pkg in packages_to_be_built]))
+    max_name_len = str(max(len(pkg.name) for pth, pkg in packages_to_be_built))
     prefix = clr('@{pf}' + ('------ ' if start_with else '- ') + '@|')
     for pkg_path, pkg in packages_to_be_built:
         build_type = pkg.get_build_type()
@@ -193,7 +193,7 @@ def dry_run(context, packages, no_deps, start_with):
             start_with = None
         log(clr("{prefix}@{cf}{name:<" + max_name_len + "}@| (@{yf}{build_type}@|)")
             .format(prefix=clr('@!@{kf}(skip)@| ') if start_with else prefix, name=pkg.name, build_type=build_type))
-    log("Total packages: " + str(len(packages_to_be_built)))
+    log(f"Total packages: {len(packages_to_be_built)}")
 
 
 def print_build_env(context, package_name):
@@ -205,8 +205,11 @@ def print_build_env(context, package_name):
             loadenv(None, None, environ, pkg, context)
             print(format_env_dict(environ, human_readable=sys.stdout.isatty()))
             return 0
-    print('[build] Error: Package `{}` not in workspace.'.format(package_name),
-          file=sys.stderr)
+    print(
+        f'[build] Error: Package `{package_name}` not in workspace.',
+        file=sys.stderr,
+    )
+
     return 1
 
 
@@ -240,21 +243,21 @@ def main(opts):
             sys.exit(clr("@{rf}Error:@| The file %s is an invalid package.xml file."
                          " See below for details:\n\n%s" % (ex.package_path, ex.msg)))
 
-        # Handle context-based package building
-        if opts.build_this:
-            if this_package:
-                opts.packages += [this_package]
-            else:
-                sys.exit(
-                    "[build] Error: In order to use --this, the current directory must be part of a catkin package.")
+    # Handle context-based package building
+    if opts.build_this:
+        if this_package:
+            opts.packages += [this_package]
+        else:
+            sys.exit(
+                "[build] Error: In order to use --this, the current directory must be part of a catkin package.")
 
-        # If --start--with was used without any packages and --this was specified, start with this package
-        if opts.start_with_this:
-            if this_package:
-                opts.start_with = this_package
-            else:
-                sys.exit(
-                    "[build] Error: In order to use --this, the current directory must be part of a catkin package.")
+    # If --start--with was used without any packages and --this was specified, start with this package
+    if opts.start_with_this:
+        if this_package:
+            opts.start_with = this_package
+        else:
+            sys.exit(
+                "[build] Error: In order to use --this, the current directory must be part of a catkin package.")
 
     if opts.no_deps and not opts.packages and not opts.unbuilt:
         sys.exit(clr("[build] @!@{rf}Error:@| With --no-deps, you must specify packages to build."))

@@ -55,13 +55,13 @@ def enable_ANSI_colors():
     # Foreground
     for index, color in enumerate(color_order):
         _ansi[color] = '{0}[{1}m'.format(_ansi['escape'], 30 + index)
-        _ansi[color + 'f'] = _ansi[color]
-        _ansi[short_colors[color] + 'f'] = _ansi[color + 'f']
+        _ansi[f'{color}f'] = _ansi[color]
+        _ansi[f'{short_colors[color]}f'] = _ansi[f'{color}f']
 
     # Background
     for index, color in enumerate(color_order):
-        _ansi[color + 'b'] = '{0}[{1}m'.format(_ansi['escape'], 40 + index)
-        _ansi[short_colors[color] + 'b'] = _ansi[color + 'b']
+        _ansi[f'{color}b'] = '{0}[{1}m'.format(_ansi['escape'], 40 + index)
+        _ansi[f'{short_colors[color]}b'] = _ansi[f'{color}b']
 
     # Fmt sanitizers
     _ansi['atexclimation'] = '@!'
@@ -181,6 +181,4 @@ class ColorMapper(object):
         if not _color_on:
             return fmt(key)
         val = self.color_map.get(key, None)
-        if val is None:
-            return fmt(key)
-        return val
+        return fmt(key) if val is None else val

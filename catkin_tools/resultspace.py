@@ -67,7 +67,7 @@ def get_resultspace_environment(result_space_path, base_env=None, quiet=False, c
     # Check to make sure result_space_path is a valid directory
     if not os.path.isdir(result_space_path):
         if quiet:
-            return dict()
+            return {}
         raise IOError(
             "Cannot load environment from resultspace \"%s\" because it does not "
             "exist." % result_space_path
@@ -77,7 +77,7 @@ def get_resultspace_environment(result_space_path, base_env=None, quiet=False, c
     # TODO: `.catkin` should be defined somewhere as an atom in catkin_pkg
     if strict and not os.path.exists(os.path.join(result_space_path, '.catkin')):
         if quiet:
-            return dict()
+            return {}
         raise IOError(
             "Cannot load environment from resultspace \"%s\" because it does not "
             "appear to be a catkin-generated resultspace (missing .catkin marker "
@@ -105,7 +105,7 @@ def get_resultspace_environment(result_space_path, base_env=None, quiet=False, c
     setup_file_path = os.path.join(result_space_path, 'env.sh')
     if not os.path.exists(setup_file_path):
         if quiet:
-            return dict()
+            return {}
         raise IOError(
             "Cannot load environment from resultspace \"%s\" because the "
             "required setup file \"%s\" does not exist." % (result_space_path, setup_file_path)
@@ -135,17 +135,21 @@ def get_resultspace_environment(result_space_path, base_env=None, quiet=False, c
         }
 
         # Check to make sure we got some kind of environment
-        if len(env_dict) > 0:
+        if env_dict:
             # Cache the result
             _resultspace_env_cache[result_space_path] = (base_env, env_hooks, env_dict)
         else:
-            print("WARNING: Sourced environment from `{}` has no environment variables. Something is wrong.".format(
-                setup_file_path))
+            print(
+                f"WARNING: Sourced environment from `{setup_file_path}` has no environment variables. Something is wrong."
+            )
+
 
     except IOError as err:
-        print("WARNING: Failed to extract environment from resultspace: {}: {}".format(
-            result_space_path, str(err)),
-            file=sys.stderr)
+        print(
+            f"WARNING: Failed to extract environment from resultspace: {result_space_path}: {str(err)}",
+            file=sys.stderr,
+        )
+
 
     return dict(env_dict)
 

@@ -54,16 +54,10 @@ def getcwd(symlinks=True):
     :rtype: str
     """
 
-    cwd = ''
-
     # Get the real path
     realpath = os.getcwd()
 
-    # The `PWD` environment variable should contain the path that we took to
-    # get here, includng symlinks
-    if symlinks:
-        cwd = os.environ.get('PWD', '')
-
+    cwd = os.environ.get('PWD', '') if symlinks else ''
     # Fallback on `getcwd` if the `PWD` variable is wrong
     if not cwd or not os.path.exists(cwd) or os.path.realpath(cwd) != realpath:
         cwd = realpath
@@ -95,7 +89,7 @@ def format_time_delta(delta):
     if ', ' in date_str:
         days, date_str = date_str.split(', ')
     hours, minutes, seconds = date_str.split(':')
-    msg = "" if int(days.split(' ')[0]) == 0 else days + " "
+    msg = "" if int(days.split(' ')[0]) == 0 else f"{days} "
     msg += "" if int(hours) == 0 else (hours + " hour{0} ".format('' if int(hours) <= 1 else 's'))
     msg += "" if int(minutes) == 0 else ("{0} minute{1} and ".format(int(minutes), '' if int(minutes) <= 1 else 's'))
     msg += "{0:.1f}".format(float(seconds))
@@ -127,9 +121,9 @@ def format_time_delta_short(delta):
     if ', ' in date_str:
         days, date_str = date_str.split(', ')
     hours, minutes, seconds = date_str.split(':')
-    msg = "" if int(days.split(' ')[0]) == 0 else days + " "
-    msg += "" if len(msg) == 0 and int(hours) == 0 else (hours + ":")
-    msg += "" if len(msg) == 0 and int(minutes) == 0 else (minutes + ":")
+    msg = "" if int(days.split(' ')[0]) == 0 else f"{days} "
+    msg += "" if len(msg) == 0 and int(hours) == 0 else f"{hours}:"
+    msg += "" if len(msg) == 0 and int(minutes) == 0 else f"{minutes}:"
     msg += ("{0:.1f}" if len(msg) == 0 and int(minutes) == 0 else "{0:04.1f}").format(float(seconds))
     return msg
 
@@ -193,16 +187,23 @@ def get_recursive_depends_in_workspace(
     }
 
     # Initialize working sets
-    pkgs_to_check = set(
+    pkgs_to_check = {
         pkg.name
-        # Only include the packages where the condition has evaluated to true
-        for pkg in chain(*(filter(lambda pkg: pkg.evaluated_condition, include_function(p)) for p in packages))
-    )
+        for pkg in chain(
+            *(
+                filter(
+                    lambda pkg: pkg.evaluated_condition, include_function(p)
+                )
+                for p in packages
+            )
+        )
+    }
+
 
     checked_pkgs = set()
     recursive_deps = set()
 
-    while len(pkgs_to_check) > 0:
+    while pkgs_to_check:
         # Get a dep
         pkg_name = pkgs_to_check.pop()
         # If it is not in the workspace, continue
@@ -225,14 +226,11 @@ def get_recursive_depends_in_workspace(
         # Add this package to the list of recursive dependencies for this package
         recursive_deps.add(pkg.name)
 
-    # Return packages in the same order as ordered_packages
-    ordered_recursive_deps = [
+    return [
         (pth, pkg_obj)
         for pth, pkg_obj in ordered_packages
         if pkg_obj.name in recursive_deps
     ]
-
-    return ordered_recursive_deps
 
 
 def get_recursive_build_depends_in_workspace(package, ordered_packages):
@@ -295,7 +293,7 @@ def get_recursive_build_dependents_in_workspace(package_name, ordered_packages):
         recursive build depends for the given package
     :rtype: list(tuple(package path, :py:class:`catkin_pkg.package.Package`))
     """
-    recursive_dependents = list()
+    recursive_dependents = []
 
     for pth, pkg in reversed(ordered_packages):
         # Break if this is one to check
@@ -324,7 +322,7 @@ def get_recursive_run_dependents_in_workspace(package_name, ordered_packages):
         recursive run depends for the given package
     :rtype: list(tuple(package path, :py:class:`catkin_pkg.package.Package`))
     """
-    recursive_dependents = list()
+    recursive_dependents = []
 
     for pth, pkg in reversed(ordered_packages):
         # Break if this is one to check
@@ -409,7 +407,7 @@ def slice_to_printed_length(string, length):
     current_index = 0
     matches = list(_ansi_escape.finditer(string))
     for m in matches:
-        for x in range(m.start() - current_index):
+        for _ in range(m.start() - current_index):
             lookup_array.append(current_index)
             current_index += 1
         current_index += len(m.group())
@@ -463,7 +461,7 @@ def __wide_log(msg, **kwargs):
     msg_len = len(remove_ansi_escape(msg))
     if 'truncate' in kwargs:
         if kwargs['truncate'] and msg_len >= width - 1:
-            msg = slice_to_printed_length(msg, width - rhs_len - 4) + '...'
+            msg = f'{slice_to_printed_length(msg, width - rhs_len - 4)}...'
             msg_len = len(remove_ansi_escape(msg))
         del kwargs['truncate']
     if (msg_len + rhs_len) < width:
@@ -564,23 +562,15 @@ def mkdir_p(path):
     try:
         return os.makedirs(path)
     except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
+        if exc.errno != errno.EEXIST or not os.path.isdir(path):
             raise
 
 
 def format_env_dict(environ, human_readable=True):
     """Format an environment dict for printing to console similarly to `typeset` builtin."""
 
-    if human_readable:
-        separator = '\n'
-    else:
-        separator = '\x00'
-    return separator.join([
-        '{}={}'.format(k, v)
-        for k, v in environ.items()
-    ])
+    separator = '\n' if human_readable else '\x00'
+    return separator.join([f'{k}={v}' for k, v in environ.items()])
 
 
 def parse_env_str(environ_str):
@@ -595,8 +585,7 @@ def parse_env_str(environ_str):
             key, value = v.split('=', 1)
             environment[key] = value
         except ValueError:
-            print('WARNING: Could not parse env string: `{}`'.format(v),
-                  file=sys.stderr)
+            print(f'WARNING: Could not parse env string: `{v}`', file=sys.stderr)
     return environment
 
 

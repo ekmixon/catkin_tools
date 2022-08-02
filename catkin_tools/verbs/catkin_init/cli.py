@@ -40,9 +40,12 @@ def main(opts):
 
         # Initialize the workspace if necessary
         if ctx:
-            print('Catkin workspace `%s` is already initialized. No action taken.' % (ctx.workspace))
+            print(
+                f'Catkin workspace `{ctx.workspace}` is already initialized. No action taken.'
+            )
+
         else:
-            print('Initializing catkin workspace in `%s`.' % (opts.workspace or os.getcwd()))
+            print(f'Initializing catkin workspace in `{opts.workspace or os.getcwd()}`.')
             # initialize the workspace
             init_metadata_root(
                 opts.workspace or os.getcwd(),
@@ -53,7 +56,7 @@ def main(opts):
 
     except IOError as exc:
         # Usually happens if workspace is already underneath another catkin_tools workspace
-        print('error: could not initialize catkin workspace: %s' % exc.message)
+        print(f'error: could not initialize catkin workspace: {exc.message}')
         return 1
 
     return 0

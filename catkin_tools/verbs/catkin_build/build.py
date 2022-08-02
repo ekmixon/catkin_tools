@@ -87,7 +87,10 @@ def determine_packages_to_be_built(packages, context, workspace_packages):
     # If this is the case, the last entry of ordered packages is a tuple that starts with nil.
     if ordered_packages and ordered_packages[-1][0] is None:
         guilty_packages = ", ".join(ordered_packages[-1][1:])
-        sys.exit("[build] Circular dependency detected in the following packages: {}".format(guilty_packages))
+        sys.exit(
+            f"[build] Circular dependency detected in the following packages: {guilty_packages}"
+        )
+
 
     workspace_package_names = dict([(pkg.name, (path, pkg)) for path, pkg in ordered_packages])
     # Determine the packages to be built
@@ -116,16 +119,14 @@ def determine_packages_to_be_built(packages, context, workspace_packages):
                 # Get the recursive dependencies for each of these packages
                 pkg_deps = get_cached_recursive_build_depends_in_workspace(package, ordered_packages)
                 packages_to_be_built_deps.extend(pkg_deps)
+    elif len(context.whitelist) > 0:
+        # Expand glob patterns in whitelist
+        whitelist = []
+        for whitelisted_package in context.whitelist:
+            whitelist.extend(expand_glob_package(whitelisted_package, workspace_package_names))
+        packages_to_be_built = [p for p in ordered_packages if (p[1].name in whitelist)]
     else:
-        # Only use whitelist when no other packages are specified
-        if len(context.whitelist) > 0:
-            # Expand glob patterns in whitelist
-            whitelist = []
-            for whitelisted_package in context.whitelist:
-                whitelist.extend(expand_glob_package(whitelisted_package, workspace_package_names))
-            packages_to_be_built = [p for p in ordered_packages if (p[1].name in whitelist)]
-        else:
-            packages_to_be_built = ordered_packages
+        packages_to_be_built = ordered_packages
 
     # Filter packages with blacklist
     if len(context.blacklist) > 0:
@@ -158,15 +159,20 @@ def get_built_unbuilt_packages(context, workspace_packages):
     """Get list of packages in workspace which have not been built."""
 
     # Get the names of all packages which have already been built
-    built_packages = set([
-        pkg.name for (path, pkg) in
-        find_packages(context.package_metadata_path(), warnings=[]).items()])
+    built_packages = {
+        pkg.name
+        for (path, pkg) in find_packages(
+            context.package_metadata_path(), warnings=[]
+        ).items()
+    }
+
 
     # Get names of all unbuilt packages
-    unbuilt_pkgs = set()
-    for path, pkg in workspace_packages.items():
-        if pkg.name not in built_packages:
-            unbuilt_pkgs.add(pkg.name)
+    unbuilt_pkgs = {
+        pkg.name
+        for path, pkg in workspace_packages.items()
+        if pkg.name not in built_packages
+    }
 
     return built_packages, unbuilt_pkgs
 

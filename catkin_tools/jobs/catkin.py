@@ -95,7 +95,7 @@ def clean_linked_files(
     devel_collisions_file_path = os.path.join(metadata_path, 'devel_collisions.txt')
 
     # Map from dest files to number of collisions
-    dest_collisions = dict()
+    dest_collisions = {}
 
     # Load destination collisions file
     if os.path.exists(devel_collisions_file_path):
@@ -117,14 +117,14 @@ def clean_linked_files(
 
         # Check collisions
         if n_collisions == 0:
-            logger.out('Unlinking: {}'.format(dest_file))
+            logger.out(f'Unlinking: {dest_file}')
             # Remove this link
             if not dry_run:
                 if os.path.exists(dest_file):
                     try:
                         os.unlink(dest_file)
                     except OSError:
-                        logger.err('Could not unlink: {}'.format(dest_file))
+                        logger.err(f'Could not unlink: {dest_file}')
                         raise
                     # Remove any non-empty directories containing this file
                     try:
@@ -170,12 +170,12 @@ def unlink_devel_products(
 
     # Check paths
     if not os.path.exists(private_devel_path):
-        logger.err('Warning: No private devel path found at `{}`'.format(private_devel_path))
+        logger.err(f'Warning: No private devel path found at `{private_devel_path}`')
         return 0
 
     devel_manifest_file_path = os.path.join(package_metadata_path, DEVEL_MANIFEST_FILENAME)
     if not os.path.exists(devel_manifest_file_path):
-        logger.err('Error: No devel manifest found at `{}`'.format(devel_manifest_file_path))
+        logger.err(f'Error: No devel manifest found at `{devel_manifest_file_path}`')
         return 1
 
     # List of files to clean
@@ -229,7 +229,7 @@ def link_devel_products(
     devel_manifest_file_path = os.path.join(devel_manifest_path, DEVEL_MANIFEST_FILENAME)
 
     # Pair of source/dest files or directories
-    products = list()
+    products = []
     # List of files to clean
     files_to_clean = []
     # List of files that collide
@@ -253,25 +253,26 @@ def link_devel_products(
                 products.append((source_dir, dest_dir))
 
                 if os.path.exists(dest_dir):
-                    if os.path.realpath(dest_dir) != os.path.realpath(source_dir):
-                        files_that_collide.append(dest_dir)
+                    if os.path.realpath(dest_dir) == os.path.realpath(
+                        source_dir
+                    ):
+                        logger.out(f'Linked: ({source_dir}, {dest_dir})')
                     else:
-                        logger.out('Linked: ({}, {})'.format(source_dir, dest_dir))
+                        files_that_collide.append(dest_dir)
                 else:
                     # Create a symlink
-                    logger.out('Symlinking %s' % (dest_dir))
+                    logger.out(f'Symlinking {dest_dir}')
                     try:
                         os.symlink(source_dir, dest_dir)
                     except OSError:
-                        logger.err('Could not create symlink `{}` referencing `{}`'.format(dest_dir, source_dir))
+                        logger.err(f'Could not create symlink `{dest_dir}` referencing `{source_dir}`')
                         raise
-            else:
-                if not os.path.exists(dest_dir):
-                    # Create the dest directory if it doesn't exist
-                    os.mkdir(dest_dir)
-                elif not os.path.isdir(dest_dir):
-                    logger.err('Error: Cannot create directory: {}'.format(dest_dir))
-                    return -1
+            elif not os.path.exists(dest_dir):
+                # Create the dest directory if it doesn't exist
+                os.mkdir(dest_dir)
+            elif not os.path.isdir(dest_dir):
+                logger.err(f'Error: Cannot create directory: {dest_dir}')
+                return -1
 
         # create symbolic links from the source to the dest
         for filename in files:
@@ -295,20 +296,26 @@ def link_devel_products(
                     # If the link links to a different file, report a warning and increment
                     # the collision counter for this path
                     if dest_hash != source_hash:
-                        logger.err('Warning: Cannot symlink from %s to existing file %s' % (source_file, dest_file))
-                        logger.err('Warning: Source hash: {}'.format(source_hash))
-                        logger.err('Warning: Dest hash: {}'.format(dest_hash))
+                        logger.err(
+                            f'Warning: Cannot symlink from {source_file} to existing file {dest_file}'
+                        )
+
+                        logger.err(f'Warning: Source hash: {source_hash}')
+                        logger.err(f'Warning: Dest hash: {dest_hash}')
                     # Increment link collision counter
                     files_that_collide.append(dest_file)
                 else:
-                    logger.out('Linked: ({}, {})'.format(source_file, dest_file))
+                    logger.out(f'Linked: ({source_file}, {dest_file})')
             else:
                 # Create the symlink
-                logger.out('Symlinking %s' % (dest_file))
+                logger.out(f'Symlinking {dest_file}')
                 try:
                     os.symlink(source_file, dest_file)
                 except OSError:
-                    logger.err('Could not create symlink `{}` referencing `{}`'.format(dest_file, source_file))
+                    logger.err(
+                        f'Could not create symlink `{dest_file}` referencing `{source_file}`'
+                    )
+
                     raise
 
     # Load the old list of symlinked files for this package
@@ -322,7 +329,7 @@ def link_devel_products(
                 # print('Checking (%s, %s)' % (source_file, dest_file))
                 if (source_file, dest_file) not in products:
                     # Clean the file or decrement the collision count
-                    logger.out('Cleaning: (%s, %s)' % (source_file, dest_file))
+                    logger.out(f'Cleaning: ({source_file}, {dest_file})')
                     files_to_clean.append(dest_file)
 
     # Remove all listed symlinks and empty directories which have been removed
@@ -365,17 +372,19 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
     job_env = dict(os.environ)
 
     # Create job stages
-    stages = []
+    stages = [
+        FunctionStage(
+            'loadenv',
+            loadenv,
+            locked_resource=None
+            if context.isolate_install
+            else 'installspace',
+            job_env=job_env,
+            package=package,
+            context=context,
+        )
+    ]
 
-    # Load environment for job.
-    stages.append(FunctionStage(
-        'loadenv',
-        loadenv,
-        locked_resource=None if context.isolate_install else 'installspace',
-        job_env=job_env,
-        package=package,
-        context=context
-    ))
 
     # Create package build space
     stages.append(FunctionStage(
@@ -408,19 +417,25 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
         require_command('cmake', CMAKE_EXEC)
 
         # CMake command
-        stages.append(CommandStage(
-            'cmake',
-            [
-                CMAKE_EXEC,
-                pkg_dir,
-                '--no-warn-unused-cli',
-                '-DCATKIN_DEVEL_PREFIX=' + devel_space,
-                '-DCMAKE_INSTALL_PREFIX=' + install_space
-            ] + context.cmake_args,
-            cwd=build_space,
-            logger_factory=CMakeIOBufferProtocol.factory_factory(pkg_dir),
-            occupy_job=True
-        ))
+        stages.append(
+            CommandStage(
+                'cmake',
+                (
+                    [
+                        CMAKE_EXEC,
+                        pkg_dir,
+                        '--no-warn-unused-cli',
+                        f'-DCATKIN_DEVEL_PREFIX={devel_space}',
+                        f'-DCMAKE_INSTALL_PREFIX={install_space}',
+                    ]
+                    + context.cmake_args
+                ),
+                cwd=build_space,
+                logger_factory=CMakeIOBufferProtocol.factory_factory(pkg_dir),
+                occupy_job=True,
+            )
+        )
+
     else:
         # Check buildsystem command
         stages.append(CommandStage(
@@ -528,24 +543,31 @@ def create_catkin_clean_job(
                 cwd=build_space,
             ))
         elif context.link_devel:
-            # Remove symlinked products
-            stages.append(FunctionStage(
-                'unlink',
-                unlink_devel_products,
-                locked_resource='symlink-collisions-file',
-                devel_space_abs=context.devel_space_abs,
-                private_devel_path=context.package_private_devel_path(package),
-                metadata_path=context.metadata_path(),
-                package_metadata_path=context.package_metadata_path(package),
-                dry_run=dry_run
-            ))
+            stages.extend(
+                (
+                    FunctionStage(
+                        'unlink',
+                        unlink_devel_products,
+                        locked_resource='symlink-collisions-file',
+                        devel_space_abs=context.devel_space_abs,
+                        private_devel_path=context.package_private_devel_path(
+                            package
+                        ),
+                        metadata_path=context.metadata_path(),
+                        package_metadata_path=context.package_metadata_path(
+                            package
+                        ),
+                        dry_run=dry_run,
+                    ),
+                    FunctionStage(
+                        'rmdevel',
+                        rmfiles,
+                        paths=[context.package_private_devel_path(package)],
+                        dry_run=dry_run,
+                    ),
+                )
+            )
 
-            # Remove devel space
-            stages.append(FunctionStage(
-                'rmdevel',
-                rmfiles,
-                paths=[context.package_private_devel_path(package)],
-                dry_run=dry_run))
         elif context.isolate_devel:
             # Remove devel space
             stages.append(FunctionStage(

@@ -17,7 +17,7 @@ RESOURCES_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'resources')
 def test_build_eclipse():
     cwd = os.getcwd()
     source_space = os.path.join(cwd, 'src')
-    print("Creating source directory: %s" % source_space)
+    print(f"Creating source directory: {source_space}")
     os.mkdir(source_space)
     with redirected_stdio() as (out, err):
         assert catkin_success(

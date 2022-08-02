@@ -37,12 +37,12 @@ class Job(object):
 
     def all_deps_completed(self, completed_jobs):
         """Return True if all dependencies have been completed."""
-        return all([dep_id in completed_jobs for dep_id in self.deps])
+        return all(dep_id in completed_jobs for dep_id in self.deps)
 
     def all_deps_succeeded(self, completed_jobs):
         """Return True if all dependencies have been completed and succeeded."""
-        return all([completed_jobs.get(dep_id, False) for dep_id in self.deps])
+        return all(completed_jobs.get(dep_id, False) for dep_id in self.deps)
 
     def any_deps_failed(self, completed_jobs):
         """Return True if any dependencies which have been completed have failed."""
-        return any([not completed_jobs.get(dep_id, True) for dep_id in self.deps])
+        return any(not completed_jobs.get(dep_id, True) for dep_id in self.deps)

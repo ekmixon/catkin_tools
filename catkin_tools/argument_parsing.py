@@ -126,16 +126,13 @@ def split_arguments(args, splitter_name=None, splitter_index=None):
 
     if end_index:
         return (
-            args[0:splitter_index],
+            args[:splitter_index],
             args[start_index:end_index],
-            args[(end_index + 1):]
+            args[(end_index + 1) :],
         )
+
     else:
-        return (
-            args[0:splitter_index],
-            args[start_index:],
-            []
-        )
+        return args[:splitter_index], args[start_index:], []
 
 
 def _extract_cmake_and_make_arguments(args, extract_catkin_make):
@@ -174,7 +171,7 @@ def _extract_cmake_and_make_arguments(args, extract_catkin_make):
         # Update whole args list, get specific args
         head_args, specific, tail = split_arguments(head_args, splitter_index=index)
         tail_args.extend(tail)
-        arg_types[name][0:0] = specific
+        arg_types[name][:0] = specific
 
     args = head_args + tail_args
 
@@ -184,11 +181,15 @@ def _extract_cmake_and_make_arguments(args, extract_catkin_make):
         args = [a for a in args if a not in implicit_cmake_args]
         cmake_args = implicit_cmake_args + cmake_args
 
-    if '--no-cmake-args' not in args and len(cmake_args) == 0:
+    if '--no-cmake-args' not in args and not cmake_args:
         cmake_args = None
-    if '--no-make-args' not in args and len(make_args) == 0:
+    if '--no-make-args' not in args and not make_args:
         make_args = None
-    if '--no-catkin-make-args' not in args and len(catkin_make_args) == 0 and extract_catkin_make:
+    if (
+        '--no-catkin-make-args' not in args
+        and not catkin_make_args
+        and extract_catkin_make
+    ):
         catkin_make_args = None
 
     return args, cmake_args, make_args, catkin_make_args
@@ -294,15 +295,12 @@ def handle_make_arguments(
 
     # Get the values for the jobs flags which may be in the make args
     jobs_dict = extract_jobs_flags_values(' '.join(make_args))
-    jobs_args = extract_jobs_flags(' '.join(make_args))
-    if jobs_args:
+    if jobs_args := extract_jobs_flags(' '.join(make_args)):
         # Remove jobs flags from cli args if they're present
         make_args = re.sub(' '.join(jobs_args), '', ' '.join(make_args)).split()
 
     if force_single_threaded_when_running_tests:
-        # force single threaded execution when running test since rostest does not support multiple parallel runs
-        run_tests = [a for a in make_args if a.startswith('run_tests')]
-        if run_tests:
+        if run_tests := [a for a in make_args if a.startswith('run_tests')]:
             wide_log('Forcing "-j1" for running unit tests.')
             jobs_dict['jobs'] = 1
 
@@ -345,7 +343,7 @@ def configure_make_args(make_args, jobs_args, use_internal_make_jobserver):
     using_makeflags_jobs_flags = makeflags_jobs_flags is not None
     if using_makeflags_jobs_flags:
         makeflags_jobs_flags_dict = extract_jobs_flags_values(' '.join(makeflags_jobs_flags))
-        jobs_flags.update(makeflags_jobs_flags_dict)
+        jobs_flags |= makeflags_jobs_flags_dict
 
     # Extract make jobs flags (these override MAKEFLAGS)
     cli_jobs_flags = jobs_args
@@ -362,11 +360,7 @@ def configure_make_args(make_args, jobs_args, use_internal_make_jobserver):
         gnu_make_enabled=use_internal_make_jobserver)
 
     # If the jobserver is supported
-    if job_server.gnu_make_enabled():
-        jobs_args = []
-    else:
-        jobs_args = cli_jobs_flags
-
+    jobs_args = [] if job_server.gnu_make_enabled() else cli_jobs_flags
     return make_args + jobs_args, using_makeflags_jobs_flags, using_cli_flags, job_server.gnu_make_enabled()
 
 

@@ -28,7 +28,8 @@ class CommandMissing(Exception):
 
     def __init__(self, name):
         super(CommandMissing, self).__init__(
-                'Cannot find required tool `%s` on the PATH, is it installed?' % name)
+            f'Cannot find required tool `{name}` on the PATH, is it installed?'
+        )
 
 
 def require_command(name, which):
@@ -111,7 +112,7 @@ def loadenv(logger, event_queue, job_env, package, context):
     envs = []
     for env_loader_path in env_loader_paths:
         if logger:
-            logger.out('Loading environment from: {}'.format(env_loader_path))
+            logger.out(f'Loading environment from: {env_loader_path}')
         envs.append(get_resultspace_environment(
             os.path.split(env_loader_path)[0],
             base_env=job_env,
@@ -185,17 +186,18 @@ def rmfiles(logger, event_queue, paths, dry_run, remove_empty=False, empty_root=
 
         # For each directory which may be empty after cleaning, visit them
         # depth-first and count their descendants
-        dir_descendants = dict()
+        dir_descendants = {}
         for path in sorted(dirs_to_check, key=lambda k: -len(k.split(os.path.sep))):
             # Get the absolute path to all the files currently in this directory
             files = [os.path.join(path, f) for f in os.listdir(path)]
             # Filter out the files which we intend to remove
             files = [f for f in files if f not in paths]
             # Compute the minimum number of files potentially contained in this path
-            dir_descendants[path] = sum([
-                (dir_descendants.get(f, 1) if os.path.isdir(f) else 1)
+            dir_descendants[path] = sum(
+                dir_descendants.get(f, 1) if os.path.isdir(f) else 1
                 for f in files
-            ])
+            )
+
 
             # Schedule the directory for removal if removal of the given files will make it empty
             if dir_descendants[path] == 0:
@@ -207,15 +209,18 @@ def rmfiles(logger, event_queue, paths, dry_run, remove_empty=False, empty_root=
         # Remove the path
         if os.path.exists(path):
             if os.path.isdir(path):
-                logger.out('Removing directory: {}'.format(path))
+                logger.out(f'Removing directory: {path}')
                 if not dry_run:
                     shutil.rmtree(path)
             else:
-                logger.out('     Removing file: {}'.format(path))
+                logger.out(f'     Removing file: {path}')
                 if not dry_run:
                     os.remove(path)
         else:
-            logger.err('Warning: File {} could not be deleted because it does not exist.'.format(path))
+            logger.err(
+                f'Warning: File {path} could not be deleted because it does not exist.'
+            )
+
 
         # Report progress
         event_queue.put(ExecutionEvent(

@@ -112,8 +112,7 @@ class CMakeIOBufferProtocol(IOBufferProtocol):
         lines = decoded_data.splitlines(True)  # Keep line breaks
         colored_lines = [self.colorize_cmake(line) for line in lines]
         colored_data = ''.join(colored_lines)
-        encoded_data = self._encode(colored_data)
-        return encoded_data
+        return self._encode(colored_data)
 
     @classmethod
     def factory_factory(cls, source_path):
@@ -182,5 +181,5 @@ def get_installed_files(path):
     installed_files = set()
     if os.path.exists(install_manifest_path):
         with open(install_manifest_path) as f:
-            installed_files = set([line.strip() for line in f.readlines()])
+            installed_files = {line.strip() for line in f.readlines()}
     return installed_files

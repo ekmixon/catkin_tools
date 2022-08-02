@@ -120,7 +120,7 @@ class GnuMake(object):
             self.make_args = None
 
     def is_supported(self):
-        return not (self.make_args is None)
+        return self.make_args is not None
 
 
 class JobServer(object):
@@ -165,7 +165,7 @@ class JobServer(object):
         cls._max_jobs = max_jobs
 
         # Initialize the pipe with max_jobs tokens
-        for i in range(cls._max_jobs):
+        for _ in range(cls._max_jobs):
             os.write(cls._job_pipe[1], b'+')
 
     @classmethod
@@ -194,10 +194,10 @@ class JobServer(object):
                 return
 
             if m_percent:
-                mem_percent = m_abs.group(1)
+                mem_percent = m_abs[1]
             elif m_abs:
-                val = float(m_abs.group(1))
-                mag_symbol = m_abs.group(2)
+                val = float(m_abs[1])
+                mag_symbol = m_abs[2]
 
                 _, total_mem = memory_usage()
 
@@ -219,10 +219,7 @@ class JobServer(object):
         if cls._max_load is not None:
             try:
                 load = os.getloadavg()
-                if load[0] < cls._max_load:
-                    cls._load_ok = True
-                else:
-                    cls._load_ok = False
+                cls._load_ok = load[0] < cls._max_load
             except NotImplementedError:
                 cls._load_ok = True
 
@@ -233,11 +230,7 @@ class JobServer(object):
         if cls._max_mem is not None:
             mem_used, mem_total = memory_usage()
             mem_percent_used = 100.0 * float(mem_used) / float(mem_total)
-            if mem_percent_used > cls._max_mem:
-                cls._mem_ok = False
-            else:
-                cls._mem_ok = True
-
+            cls._mem_ok = mem_percent_used <= cls._max_mem
         return cls._mem_ok
 
     @classmethod
@@ -251,9 +244,7 @@ class JobServer(object):
         deadlocks.
         """
         try:
-            # read a token from the job pipe
-            token = os.read(cls._job_pipe[0], 1)
-            return token
+            return os.read(cls._job_pipe[0], 1)
         except (BlockingIOError, InterruptedError):
             pass
 
@@ -374,14 +365,7 @@ def acquire():
     Block until a job server token is acquired, then return it.
     """
 
-    token = None
-
-    # make sure we're observing load and memory maximums
-    if JobServer._check_conditions():
-        # try to get a job token
-        token = JobServer._acquire()
-
-    return token
+    return JobServer._acquire() if JobServer._check_conditions() else None
 
 
 def add_label(label):
@@ -399,9 +383,7 @@ def try_acquire_gen():
     while True:
         # make sure we're observing load and memory maximums
         if JobServer._check_conditions() and running_jobs() < max_jobs():
-            # try to get a job token
-            token = JobServer._acquire()
-            yield token
+            yield JobServer._acquire()
         else:
             yield None
 
@@ -412,9 +394,7 @@ def try_acquire():
     """
     # make sure we're observing load and memory maximums
     if JobServer._check_conditions() and running_jobs() < max_jobs():
-        # try to get a job token
-        token = JobServer._acquire()
-        return token
+        return JobServer._acquire()
 
     return None
 
@@ -456,10 +436,7 @@ def running_jobs():
     Try to estimate the number of currently running jobs.
     """
 
-    if not gnu_make_enabled():
-        return 0
-
-    return JobServer._running_jobs()
+    return JobServer._running_jobs() if gnu_make_enabled() else 0
 
 
 def internal_jobs():

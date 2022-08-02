@@ -107,14 +107,14 @@ def get_multiarch():
             ['gcc', '-print-multiarch'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
-    except (OSError, FileNotFoundError):
+    except OSError:
         error_thrown = True
     if error_thrown or p.returncode != 0:
         try:
             out, err = subprocess.Popen(
                 ['dpkg-architecture', '-qDEB_HOST_MULTIARCH'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        except (OSError, FileNotFoundError):
+        except OSError:
             return ''
     # be sure to return empty string or a valid multiarch tuple
     decoded = out.decode().strip()
@@ -135,8 +135,9 @@ def generate_env_file(logger, event_queue, context, install_target):
 
     # Create a temporary file in the setup_file_directory, so os.rename cannot fail
     tmp_dst_handle, tmp_dst_path = tempfile.mkstemp(
-        dir=env_file_directory,
-        prefix=os.path.basename(env_file_path) + '.')
+        dir=env_file_directory, prefix=f'{os.path.basename(env_file_path)}.'
+    )
+
 
     # Write the filled template to the file
     subs = {}
@@ -177,11 +178,13 @@ def generate_setup_file(logger, event_queue, context, install_target):
 
     # Create the setup file that dependent packages will source
     arch = get_multiarch()
-    subs = {}
-    subs['cmake_prefix_path'] = install_target + ":"
-    subs['ld_path'] = os.path.join(install_target, 'lib') + ":"
+    subs = {
+        'cmake_prefix_path': f"{install_target}:",
+        'ld_path': os.path.join(install_target, 'lib') + ":",
+    }
+
     pythonpath = os.path.join(install_target, get_python_install_dir(context))
-    subs['pythonpath'] = pythonpath + ':'
+    subs['pythonpath'] = f'{pythonpath}:'
     subs['pkgcfg_path'] = os.path.join(install_target, 'lib', 'pkgconfig') + ":"
     subs['path'] = os.path.join(install_target, 'bin') + ":"
     subs['cpath'] = os.path.join(install_target, 'include') + ":"
@@ -196,7 +199,9 @@ def generate_setup_file(logger, event_queue, context, install_target):
     # Create a temporary file in the setup_file_directory, so os.rename cannot fail
     tmp_dst_handle, tmp_dst_path = tempfile.mkstemp(
         dir=setup_file_directory,
-        prefix=os.path.basename(setup_file_path) + '.')
+        prefix=f'{os.path.basename(setup_file_path)}.',
+    )
+
 
     # Write the filled template to the file
     data = SETUP_FILE_TEMPLATE.format(**subs)
@@ -227,17 +232,17 @@ def create_cmake_build_job(context, package, package_path, dependencies, force_c
     final_path = context.package_final_path(package)
 
     # Create job stages
-    stages = []
+    stages = [
+        FunctionStage(
+            'loadenv',
+            loadenv,
+            locked_resource='installspace',
+            job_env=job_env,
+            package=package,
+            context=context,
+        )
+    ]
 
-    # Load environment for job.
-    stages.append(FunctionStage(
-        'loadenv',
-        loadenv,
-        locked_resource='installspace',
-        job_env=job_env,
-        package=package,
-        context=context
-    ))
 
     # Create package build space
     stages.append(FunctionStage(
@@ -266,16 +271,23 @@ def create_cmake_build_job(context, package, package_path, dependencies, force_c
     # CMake command
     makefile_path = os.path.join(build_space, 'Makefile')
     if not os.path.isfile(makefile_path) or force_cmake:
-        stages.append(CommandStage(
-            'cmake',
-            ([CMAKE_EXEC,
-              pkg_dir,
-              '--no-warn-unused-cli',
-              '-DCMAKE_INSTALL_PREFIX=' + final_path] +
-             context.cmake_args),
-            cwd=build_space,
-            logger_factory=CMakeIOBufferProtocol.factory_factory(pkg_dir)
-        ))
+        stages.append(
+            CommandStage(
+                'cmake',
+                (
+                    [
+                        CMAKE_EXEC,
+                        pkg_dir,
+                        '--no-warn-unused-cli',
+                        f'-DCMAKE_INSTALL_PREFIX={final_path}',
+                    ]
+                    + context.cmake_args
+                ),
+                cwd=build_space,
+                logger_factory=CMakeIOBufferProtocol.factory_factory(pkg_dir),
+            )
+        )
+
     else:
         stages.append(CommandStage(
             'check',

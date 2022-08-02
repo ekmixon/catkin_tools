@@ -125,7 +125,7 @@ def clean_packages(
         }
 
         # It's a problem if there aren't any build types available
-        if len(clean_job_creators) == 0:
+        if not clean_job_creators:
             sys.exit('Error: No build types availalbe. Please check your catkin_tools installation.')
 
         # Determine the job parameters
@@ -145,7 +145,7 @@ def clean_packages(
         if build_type in clean_job_creators:
             jobs.append(clean_job_creators[build_type](**clean_job_kwargs))
 
-    if len(jobs) == 0:
+    if not jobs:
         print("[clean] There are no products from the given packages to clean.")
         return False
 
@@ -159,8 +159,8 @@ def clean_packages(
         jobs,
         1,
         [pkg.name for _, pkg in context.packages],
-        [p for p in context.whitelist],
-        [p for p in context.blacklist],
+        list(context.whitelist),
+        list(context.blacklist),
         event_queue,
         show_notifications=False,
         show_active_status=False,
@@ -171,7 +171,9 @@ def clean_packages(
         show_stage_events=False,
         show_full_summary=False,
         pre_start_time=pre_start_time,
-        active_status_rate=10.0)
+        active_status_rate=10.0,
+    )
+
     status_thread.start()
 
     # Initialize locks (none need to be configured here)

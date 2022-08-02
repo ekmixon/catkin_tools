@@ -74,10 +74,9 @@ async def async_job(verb, job, threadpool, locks, event_queue, log_path):
                     while job_server.try_acquire() is None:
                         await asyncio.sleep(0.05)
                     occupying_job = True
-            else:
-                if occupying_job:
-                    job_server.release()
-                    occupying_job = False
+            elif occupying_job:
+                job_server.release()
+                occupying_job = False
 
             # Notify stage started
             event_queue.put(ExecutionEvent(
@@ -138,14 +137,14 @@ async def async_job(verb, job, threadpool, locks, event_queue, log_path):
                 except:  # noqa: E722
                     # Bare except is permissable here because the set of errors which the FunctionStage might raise
                     # is unbounded. We capture the traceback here and save it to the build's log files.
-                    logger.err('Stage `{}` failed with arguments:'.format(stage.label))
+                    logger.err(f'Stage `{stage.label}` failed with arguments:')
                     for arg_val in stage.args:
-                        logger.err('  {}'.format(arg_val))
+                        logger.err(f'  {arg_val}')
                     for arg_name, arg_val in stage.kwargs.items():
-                        logger.err('  {}: {}'.format(arg_name, arg_val))
+                        logger.err(f'  {arg_name}: {arg_val}')
                     retcode = 3
             else:
-                raise TypeError("Bad Job Stage: {}".format(stage))
+                raise TypeError(f"Bad Job Stage: {stage}")
 
             # Set whether this stage succeeded
             stage_succeeded = (retcode == 0)
@@ -217,7 +216,10 @@ async def execute_jobs(
     threadpool = ThreadPoolExecutor(max_workers=job_server.max_jobs())
 
     # Immediately abandon jobs with bad dependencies
-    pending_jobs, new_abandoned_jobs = split(jobs, lambda j: all([d in job_map for d in j.deps]))
+    pending_jobs, new_abandoned_jobs = split(
+        jobs, lambda j: all(d in job_map for d in j.deps)
+    )
+
 
     for abandoned_job in new_abandoned_jobs:
         abandoned_jobs.append(abandoned_job)
@@ -308,7 +310,7 @@ async def execute_jobs(
                     unhandled_abandoned_job_ids = [job_id]
 
                     # Abandon jobs which depend on abandoned jobs
-                    while len(unhandled_abandoned_job_ids) > 0:
+                    while unhandled_abandoned_job_ids:
                         # Get the abandoned job
                         abandoned_job_id = unhandled_abandoned_job_ids.pop(0)
 
@@ -357,7 +359,7 @@ async def execute_jobs(
         completed=completed_jobs
     ))
 
-    return all(completed_jobs.values()) and len(abandoned_jobs) == 0
+    return all(completed_jobs.values()) and not abandoned_jobs
 
 
 def run_until_complete(coroutine):

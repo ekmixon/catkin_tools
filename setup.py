@@ -52,13 +52,10 @@ def _resolve_prefix(type):
 
 
 def get_data_files():
-    data_files = []
-
     # Bash completion
     bash_comp_dest = os.path.join(_resolve_prefix('bash_comp'),
                                   'share/bash-completion/completions')
-    data_files.append((bash_comp_dest, ['completion/catkin.bash']))
-
+    data_files = [(bash_comp_dest, ['completion/catkin.bash'])]
     # Zsh completion
     if 'DEB_BUILD' in os.environ:
         dirname = 'share/zsh/vendor-completions'

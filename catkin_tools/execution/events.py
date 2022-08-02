@@ -52,7 +52,7 @@ class ExecutionEvent(object):
         # Make sure the event ID is valid
         if event_id not in ExecutionEvent.EVENT_IDS:
             print(ExecutionEvent.EVENT_IDS)
-            raise ValueError("The event ID %s is not a valid executor event." % event_id)
+            raise ValueError(f"The event ID {event_id} is not a valid executor event.")
 
         # Store the event data
         self.event_id = event_id

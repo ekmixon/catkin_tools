@@ -97,7 +97,12 @@ def get_paths(workspace_path, profile_name, verb=None):
     metadata_path = os.path.join(profiles_path, profile_name) if profile_name else None
 
     # Get the metadata for this verb
-    metadata_file_path = os.path.join(metadata_path, '%s.yaml' % verb) if profile_name and verb else None
+    metadata_file_path = (
+        os.path.join(metadata_path, f'{verb}.yaml')
+        if profile_name and verb
+        else None
+    )
+
 
     return (metadata_path, metadata_file_path)
 
@@ -228,7 +233,10 @@ def init_metadata_root(workspace_path, reset=False):
     if os.path.exists(metadata_root_path):
         # Reset the directory if requested
         if reset:
-            print("Deleting existing metadata from catkin_tools metadata directory: %s" % (metadata_root_path))
+            print(
+                f"Deleting existing metadata from catkin_tools metadata directory: {metadata_root_path}"
+            )
+
             shutil.rmtree(metadata_root_path)
             os.mkdir(metadata_root_path)
     else:
@@ -264,7 +272,10 @@ def init_profile(workspace_path, profile_name, reset=False):
     if os.path.exists(profile_path):
         # Reset the directory if requested
         if reset:
-            print("Deleting existing profile from catkin_tools profile directory: %s" % (profile_path))
+            print(
+                f"Deleting existing profile from catkin_tools profile directory: {profile_path}"
+            )
+
             shutil.rmtree(profile_path)
             os.mkdir(profile_path)
     else:
@@ -286,12 +297,7 @@ def get_profile_names(workspace_path):
 
     profiles_path = get_profiles_path(workspace_path)
 
-    if os.path.exists(profiles_path):
-        directories = next(os.walk(profiles_path))[1]
-
-        return directories
-
-    return []
+    return next(os.walk(profiles_path))[1] if os.path.exists(profiles_path) else []
 
 
 def remove_profile(workspace_path, profile_name):
@@ -390,7 +396,7 @@ def get_metadata(workspace_path, profile, verb):
     (metadata_path, metadata_file_path) = get_paths(workspace_path, profile, verb)
 
     if not os.path.exists(metadata_file_path) or os.path.getsize(metadata_file_path) == 0:
-        return dict()
+        return {}
 
     with open(metadata_file_path, 'r') as metadata_file:
         return yaml.safe_load(metadata_file)
@@ -419,11 +425,7 @@ def update_metadata(workspace_path, profile, verb, new_data={}, no_init=False, m
         init_profile(workspace_path, profile)
 
     # Get the curent metadata for this verb
-    if merge:
-        data = get_metadata(workspace_path, profile, verb)
-    else:
-        data = dict()
-
+    data = get_metadata(workspace_path, profile, verb) if merge else {}
     # Update the metadata for this verb
     data.update(new_data)
     try:

@@ -249,11 +249,10 @@ class ConsoleStatusController(threading.Thread):
 
         # Compute the max job id length when combined with stage labels
         self.max_jid_length = 1
-        if len(self.jobs) > 0:
+        if self.jobs:
             self.max_jid_length += max(
-                [len(jid) + max([len(s.label) for s in job.stages] or [0])
-                 for jid, job
-                 in self.jobs.items()]
+                len(jid) + max([len(s.label) for s in job.stages] or [0])
+                for jid, job in self.jobs.items()
             )
 
     def print_exec_summary(self, completed_jobs, warned_jobs, failed_jobs):
@@ -262,7 +261,7 @@ class ConsoleStatusController(threading.Thread):
         """
 
         # Calculate the longest jid
-        max_jid_len = max([len(jid) for jid in self.available_jobs])
+        max_jid_len = max(len(jid) for jid in self.available_jobs)
 
         templates = {
             'successful': clr(" [@!@{gf}Successful@|] @{cf}{jid:<%d}@|" % max_jid_len),
@@ -273,10 +272,11 @@ class ConsoleStatusController(threading.Thread):
         }
 
         # Calculate the maximum _printed_ length for each template
-        max_column_len = max([
+        max_column_len = max(
             len(remove_ansi_escape(t.format(jid=("?" * max_jid_len))))
             for t in templates.values()
-        ])
+        )
+
 
         # Calculate the number of columns
         number_of_columns = int((terminal_width() / max_column_len) or 1)
@@ -322,28 +322,28 @@ class ConsoleStatusController(threading.Thread):
             wide_log("")
 
         # Print out whitelisted jobs
-        if len(non_whitelisted) > 0:
+        if non_whitelisted:
             wide_log("")
             wide_log(clr("[{}] Non-whitelisted {}:").format(self.label, self.jobs_label))
             wide_log("")
             print_items_in_columns(sorted(non_whitelisted.items()), number_of_columns)
 
         # Print out blacklisted jobs
-        if len(blacklisted) > 0:
+        if blacklisted:
             wide_log("")
             wide_log(clr("[{}] Blacklisted {}:").format(self.label, self.jobs_label))
             wide_log("")
             print_items_in_columns(sorted(blacklisted.items()), number_of_columns)
 
         # Print out jobs that failed
-        if len(faileds) > 0:
+        if faileds:
             wide_log("")
             wide_log(clr("[{}] Failed {}:").format(self.label, self.jobs_label))
             wide_log("")
             print_items_in_columns(sorted(faileds.items()), number_of_columns)
 
         # Print out jobs that were abandoned
-        if len(abandoneds) > 0:
+        if abandoneds:
             wide_log("")
             wide_log(clr("[{}] Abandoned {}:").format(self.label, self.jobs_label))
             wide_log("")
@@ -358,71 +358,79 @@ class ConsoleStatusController(threading.Thread):
         notification_msg = []
         # Print error summary
         if len(completed_jobs) == len(self.jobs) and all(completed_jobs.items()) and len(failed_jobs) == 0:
-            notification_title = "{} Succeeded".format(self.label.capitalize())
-            notification_msg.append("All {} {} succeeded!".format(len(self.jobs), self.jobs_label))
+            notification_title = f"{self.label.capitalize()} Succeeded"
+            notification_msg.append(f"All {len(self.jobs)} {self.jobs_label} succeeded!")
 
             wide_log(clr('[{}] Summary: All {} {} succeeded!').format(
                 self.label,
                 len(self.jobs),
                 self.jobs_label))
         else:
-            notification_msg.append("{} of {} {} succeeded.".format(
-                len([succeeded for jid, succeeded in completed_jobs.items() if succeeded]),
-                len(self.jobs), self.jobs_label))
+            notification_msg.append(
+                f"{len([succeeded for jid, succeeded in completed_jobs.items() if succeeded])} of {len(self.jobs)} {self.jobs_label} succeeded."
+            )
+
             wide_log(clr('[{}] Summary: {} of {} {} succeeded.').format(
                 self.label,
                 len([succeeded for jid, succeeded in completed_jobs.items() if succeeded]),
                 len(self.jobs),
                 self.jobs_label))
 
-        # Display number of ignored jobs (jobs which shouldn't have been built)
-        all_ignored_jobs = [j for j in self.available_jobs if j not in self.jobs]
-        if len(all_ignored_jobs) == 0:
-            wide_log(clr('[{}] Ignored: None.').format(
-                self.label))
-        else:
-            notification_msg.append("{} {} were skipped.".format(len(all_ignored_jobs), self.jobs_label))
+        if all_ignored_jobs := [
+            j for j in self.available_jobs if j not in self.jobs
+        ]:
+            notification_msg.append(
+                f"{len(all_ignored_jobs)} {self.jobs_label} were skipped."
+            )
+
             wide_log(clr('[{}] Ignored: {} {} were skipped or are blacklisted.').format(
                 self.label,
                 len(all_ignored_jobs),
                 self.jobs_label))
 
+        else:
+            wide_log(clr('[{}] Ignored: None.').format(
+                self.label))
         # Display number of jobs which produced warnings
         if len(warned_jobs) == 0:
             wide_log(clr('[{}] Warnings: None.').format(
                 self.label))
         else:
-            notification_title = "{} Succeeded with Warnings".format(self.label.capitalize())
-            notification_msg.append("{} {} succeeded with warnings.".format(len(warned_jobs), self.jobs_label))
+            notification_title = f"{self.label.capitalize()} Succeeded with Warnings"
+            notification_msg.append(
+                f"{len(warned_jobs)} {self.jobs_label} succeeded with warnings."
+            )
+
 
             wide_log(clr('[{}] Warnings: {} {} succeeded with warnings.').format(
                 self.label,
                 len(warned_jobs),
                 self.jobs_label))
 
-        # Display number of abandoned jobs
-        all_abandoned_jobs = [j for j in self.jobs if j not in completed_jobs]
-        if len(all_abandoned_jobs) == 0:
-            wide_log(clr('[{}] Abandoned: No {} were abandoned.').format(
-                self.label,
-                self.jobs_label))
-        else:
-            notification_title = "{} Incomplete".format(self.label.capitalize())
-            notification_msg.append("{} {} were abandoned.".format(len(all_abandoned_jobs), self.jobs_label))
+        if all_abandoned_jobs := [j for j in self.jobs if j not in completed_jobs]:
+            notification_title = f"{self.label.capitalize()} Incomplete"
+            notification_msg.append(
+                f"{len(all_abandoned_jobs)} {self.jobs_label} were abandoned."
+            )
+
 
             wide_log(clr('[{}] Abandoned: {} {} were abandoned.').format(
                 self.label,
                 len(all_abandoned_jobs),
                 self.jobs_label))
 
+        else:
+            wide_log(clr('[{}] Abandoned: No {} were abandoned.').format(
+                self.label,
+                self.jobs_label))
         # Display number of failed jobs
         if len(failed_jobs) == 0:
             wide_log(clr('[{}] Failed: No {} failed.').format(
                 self.label,
                 self.jobs_label))
         else:
-            notification_title = "{} Failed".format(self.label.capitalize())
-            notification_msg.append("{} {} failed.".format(len(failed_jobs), self.jobs_label))
+            notification_title = f"{self.label.capitalize()} Failed"
+            notification_msg.append(f"{len(failed_jobs)} {self.jobs_label} failed.")
 
             wide_log(clr('[{}] Failed: {} {} failed.').format(
                 self.label,

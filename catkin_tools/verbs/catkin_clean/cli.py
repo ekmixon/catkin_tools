@@ -52,10 +52,10 @@ setup_files = ['.catkin', 'env.sh', 'setup.bash', 'setup.sh', 'setup.zsh', '_set
 
 def yes_no_loop(question):
     while True:
-        resp = str(input(question + " [yN]: "))
-        if resp.lower() in ['n', 'no'] or len(resp) == 0:
+        resp = str(input(f"{question} [yN]: "))
+        if resp.lower() in {'n', 'no'} or not resp:
             return False
-        elif resp.lower() in ['y', 'yes']:
+        elif resp.lower() in {'y', 'yes'}:
             return True
         log(clr("[clean] Please answer either \"yes\" or \"no\"."))
 
@@ -68,14 +68,18 @@ def safe_rmtree(path, workspace_root, force):
 
     yes = True
     if not path_in_workspace and not force:
-        log(clr("[clean] Warning: `{}` is outside of the workspace root. (Use"
-                " --force to skip this check)".format(path)))
-        yes = yes_no_loop("Are you sure you want to entirely remove `{}`?".format(path))
+        log(
+            clr(
+                f"[clean] Warning: `{path}` is outside of the workspace root. (Use --force to skip this check)"
+            )
+        )
+
+        yes = yes_no_loop(f"Are you sure you want to entirely remove `{path}`?")
 
     if yes:
         shutil.rmtree(path)
     else:
-        log("[clean] Not removing `{}`".format(path))
+        log(f"[clean] Not removing `{path}`")
 
 
 def prepare_arguments(parser):

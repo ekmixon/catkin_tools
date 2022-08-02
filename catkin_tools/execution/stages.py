@@ -81,8 +81,10 @@ class CommandStage(Stage):
         :param logger_factory: The factory to use to construct a logger (default: IOBufferProtocol.factory)
         """
 
-        if not type(cmd) in [list, tuple] or not all([isinstance(s, str) for s in cmd]):
-            raise ValueError('Command stage must be a list of strings: {}'.format(cmd))
+        if type(cmd) not in [list, tuple] or not all(
+            isinstance(s, str) for s in cmd
+        ):
+            raise ValueError(f'Command stage must be a list of strings: {cmd}')
         super(CommandStage, self).__init__(label, logger_factory, occupy_job, locked_resource)
 
         # Store environment overrides
@@ -112,27 +114,22 @@ class CommandStage(Stage):
         """Get a command line to reproduce this stage with the proper environment."""
 
         # Define the base env command
-        get_env_cmd = 'catkin {} --get-env {}'.format(verb, jid)
+        get_env_cmd = f'catkin {verb} --get-env {jid}'
 
         # Add additional env args
-        env_overrides_formatted = ' '.join([
-            '{}={}'.format(k, cmd_quote(v))
-            for k, v in self.env_overrides.items()
-        ])
+        env_overrides_formatted = ' '.join(
+            [f'{k}={cmd_quote(v)}' for k, v in self.env_overrides.items()]
+        )
+
 
         # Define the actual command to reproduce
         cmd_str = ' '.join([cmd_quote(t) for t in self.async_execute_process_kwargs['cmd']])
 
         # Define the command to run the subcommand
-        env_cmd = 'catkin env -si {} {}'.format(
-            env_overrides_formatted,
-            cmd_str)
+        env_cmd = f'catkin env -si {env_overrides_formatted} {cmd_str}'
 
         # Return the full command
-        return 'cd {}; {} | {}; cd -'.format(
-            self.async_execute_process_kwargs['cwd'],
-            get_env_cmd,
-            env_cmd)
+        return f"cd {self.async_execute_process_kwargs['cwd']}; {get_env_cmd} | {env_cmd}; cd -"
 
 
 class FunctionStage(Stage):

@@ -28,7 +28,7 @@ class FileBackedLogCache(object):
         self.package = package_name
         self.log_dir = log_dir
         self.color = color
-        self.log_path = os.path.join(log_dir, self.package + '.log')
+        self.log_path = os.path.join(log_dir, f'{self.package}.log')
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
         self.file_handle = open(self.log_path, 'w')
@@ -141,10 +141,11 @@ class OutputController(object):
                 .format(package, cmd.pretty, location, retcode))
         msg = clr("[{package}] <== '{cmd.cmd_str}' finished with return code '{retcode}'").format(**locals())
         self.__command_log[package].finish_command(msg)
-        if not self.quiet and not self.interleave:
-            self.__command_log[package].print_last_command_log()
-        elif not self.quiet:
-            wide_log(msg)
+        if not self.quiet:
+            if not self.interleave:
+                self.__command_log[package].print_last_command_log()
+            else:
+                wide_log(msg)
 
     def job_finished(self, package, time):
         self.__command_log[package].close()

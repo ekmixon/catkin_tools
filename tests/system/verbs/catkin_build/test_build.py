@@ -28,16 +28,14 @@ BUILD_TYPES = ['cmake', 'catkin']
 def create_flat_workspace(wf, build_type, n_pkgs):
     """Create a bunch of packages with no interdependencies"""
     for i in range(n_pkgs):
-        wf.create_package('pkg_{}'.format(i))
+        wf.create_package(f'pkg_{i}')
 
 
 def create_chain_workspace(wf, build_type, n_pkgs):
     """Create a bunch of packages, each of which depends on one other in the
     workspace except for the root."""
     for i in range(n_pkgs):
-        wf.create_package(
-            'pkg_{}'.format(i),
-            depends=(['pkg_{}'.format(i - 1)] if i > 0 else []))
+        wf.create_package(f'pkg_{i}', depends=[f'pkg_{i - 1}'] if i > 0 else [])
 
 
 def create_tree_workspace(wf, build_type, n_pkg_layers, n_children=2):
@@ -45,9 +43,11 @@ def create_tree_workspace(wf, build_type, n_pkg_layers, n_children=2):
     n_pkgs = pow(n_children, n_pkg_layers + 1) - 1
     for i in range(n_pkgs):
         wf.create_package(
-            'pkg_{}'.format(i),
+            f'pkg_{i}',
             build_type=build_type,
-            depends=(['pkg_{}'.format(int((i - 1) / n_children))] if i > 0 else []))
+            depends=[f'pkg_{int((i - 1) / n_children)}'] if i > 0 else [],
+        )
+
     return n_pkgs
 
 
@@ -95,8 +95,12 @@ def test_build_all_isolate_install():
     with redirected_stdio() as (out, err):
         with workspace_factory() as wf:
             n_pkgs = create_tree_workspace(wf, 'catkin', 2)
-            wf.create_package('pkg_dep', build_type='catkin',
-                              build_depends=['pkg_{}'.format(n) for n in range(n_pkgs)])
+            wf.create_package(
+                'pkg_dep',
+                build_type='catkin',
+                build_depends=[f'pkg_{n}' for n in range(n_pkgs)],
+            )
+
             wf.build()
 
             assert catkin_success(['config', '--isolate-install', '--install'])
@@ -110,8 +114,12 @@ def test_build_all_isolate_devel():
     with redirected_stdio() as (out, err):
         with workspace_factory() as wf:
             n_pkgs = create_tree_workspace(wf, 'catkin', 2)
-            wf.create_package('pkg_dep', build_type='catkin',
-                              build_depends=['pkg_{}'.format(n) for n in range(n_pkgs)])
+            wf.create_package(
+                'pkg_dep',
+                build_type='catkin',
+                build_depends=[f'pkg_{n}' for n in range(n_pkgs)],
+            )
+
             wf.build()
 
             assert catkin_success(['config', '--isolate-devel'])
@@ -176,7 +184,7 @@ def test_build_start_with():
                 # this should build all packages
                 assert catkin_success(BUILD + ['--start-with', 'pkg_0'])
                 for i in range(4):
-                    assert os.path.exists(os.path.join('build', 'pkg_{}'.format(i)))
+                    assert os.path.exists(os.path.join('build', f'pkg_{i}'))
                 assert catkin_success(CLEAN)
 
                 # this should skip pkg_2's deps
@@ -320,7 +328,7 @@ def test_install_catkin_destdir():
             setup_dir_correct = False
             with open(setup_sh_path, "r") as setup_sh:
                 for line in setup_sh:
-                    if re.search('_CATKIN_SETUP_DIR:={}'.format(install_space), line):
+                    if re.search(f'_CATKIN_SETUP_DIR:={install_space}', line):
                         setup_dir_correct = True
                         break
             assert setup_dir_correct is True

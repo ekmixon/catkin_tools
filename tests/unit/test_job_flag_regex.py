@@ -25,14 +25,10 @@ def check_only_strings_in_list_util(mflags, args_list):
     for arg in args_list:
         if arg not in split_flags:
             return False
-        else:
-            first_index = next(
-                i for i, val in enumerate(split_flags) if val == arg)
-            split_flags.pop(first_index)
-    if not split_flags:
-        return True
-    else:
-        return False
+        first_index = next(
+            i for i, val in enumerate(split_flags) if val == arg)
+        split_flags.pop(first_index)
+    return not split_flags
 
 
 def test_job_flag_filtering_jl_packages():

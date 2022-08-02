@@ -60,7 +60,7 @@ class IOBufferContainer(object):
         # Construct the logfile path for this job and stage
         logfile_dir_path = os.path.join(log_path, self.job_id)
         self.logfile_basename = os.path.join(logfile_dir_path, '.'.join([self.label, self.stage_label]))
-        self.logfile_name = '{}.log'.format(self.logfile_basename)
+        self.logfile_name = f'{self.logfile_basename}.log'
 
         # Create the logfile dir if it doesn't exist
         if not os.path.exists(logfile_dir_path):
@@ -68,8 +68,13 @@ class IOBufferContainer(object):
 
         # Get the existing number of logfiles
         # TODO: Make this number global across all build stages
-        existing_logfile_indices = sorted([int(lf.split('.')[-2])
-                                           for lf in glob('{}.*.log'.format(self.logfile_basename))])
+        existing_logfile_indices = sorted(
+            [
+                int(lf.split('.')[-2])
+                for lf in glob(f'{self.logfile_basename}.*.log')
+            ]
+        )
+
         if len(existing_logfile_indices) == 0:
             self.logfile_index = 0
         else:
@@ -95,13 +100,13 @@ class IOBufferContainer(object):
         shutil.copy(self.logfile_name, self.unique_logfile_name)
 
         # Remove older logfiles
-        for logfile_name in glob('{}.*.log'.format(self.logfile_basename)):
+        for logfile_name in glob(f'{self.logfile_basename}.*.log'):
             if (self.logfile_index - int(logfile_name.split('.')[-2])) >= MAX_LOGFILE_HISTORY:
                 os.unlink(logfile_name)
 
         # Save output from stderr (these don't get deleted until cleaning the logfile directory)
         if len(self.stderr_buffer) > 0:
-            with open(self.unique_logfile_name + '.stderr', 'wb') as logfile:
+            with open(f'{self.unique_logfile_name}.stderr', 'wb') as logfile:
                 logfile.write(self.stderr_buffer)
 
     def get_interleaved_log(self):
@@ -224,7 +229,7 @@ class IOBufferProtocol(IOBufferContainer, AsyncSubprocessProtocol):
     def _split(self, data):
         try:
             last_break = data.rindex(b'\n') + 1
-            return data[0:last_break], data[last_break:]
+            return data[:last_break], data[last_break:]
         except ValueError:
             return b'', data
 

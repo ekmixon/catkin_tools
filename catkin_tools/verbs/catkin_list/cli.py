@@ -77,12 +77,8 @@ def main(opts):
     if not ctx:
         sys.exit(clr("@{rf}ERROR: Could not determine workspace.@|"))
 
-    if opts.directory:
-        folders = opts.directory
-    else:
-        folders = [ctx.source_space_abs]
-
-    list_entry_format = '@{pf}-@| @{cf}%s@|' if not opts.unformatted else '%s'
+    folders = opts.directory or [ctx.source_space_abs]
+    list_entry_format = '%s' if opts.unformatted else '@{pf}-@| @{cf}%s@|'
 
     opts.depends_on = set(opts.depends_on) if opts.depends_on else set()
     warnings = []
@@ -100,9 +96,9 @@ def main(opts):
                 dependents = set()
 
                 for pth, pkg in ordered_packages:
-                    is_dep = opts.depends_on.intersection([
-                        p.name for p in pkg.build_depends + pkg.run_depends])
-                    if is_dep:
+                    if is_dep := opts.depends_on.intersection(
+                        [p.name for p in pkg.build_depends + pkg.run_depends]
+                    ):
                         dependents.add(pkg.name)
 
                 for pth, pkg in [packages_by_name.get(n) for n in opts.rdepends_on]:
@@ -124,10 +120,12 @@ def main(opts):
                     warnings=[])
                 if this_package is None:
                     sys.exit(1)
-                if this_package in packages_by_name:
-                    filtered_packages = [packages_by_name[this_package]]
-                else:
-                    filtered_packages = []
+                filtered_packages = (
+                    [packages_by_name[this_package]]
+                    if this_package in packages_by_name
+                    else []
+                )
+
             else:
                 filtered_packages = ordered_packages
 
@@ -141,11 +139,11 @@ def main(opts):
                     run_deps = [dep for dep in pkg.run_depends if dep.evaluated_condition]
 
                 if opts.deps or opts.rdeps:
-                    if len(build_deps) > 0:
+                    if build_deps:
                         print(clr('  @{yf}build_depend:@|'))
                         for dep in build_deps:
                             print(clr('  @{pf}-@| %s' % dep.name))
-                    if len(run_deps) > 0:
+                    if run_deps:
                         print(clr('  @{yf}run_depend:@|'))
                         for dep in run_deps:
                             print(clr('  @{pf}-@| %s' % dep.name))

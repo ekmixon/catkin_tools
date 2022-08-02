@@ -32,10 +32,12 @@ CATKIN_COMMAND_VERB_GROUP = 'catkin_tools.commands.catkin.verbs'
 
 
 def list_verbs():
-    verbs = []
-    for entry_point in pkg_resources.iter_entry_points(group=CATKIN_COMMAND_VERB_GROUP):
-        verbs.append(entry_point.name)
-    return verbs
+    return [
+        entry_point.name
+        for entry_point in pkg_resources.iter_entry_points(
+            group=CATKIN_COMMAND_VERB_GROUP
+        )
+    ]
 
 
 def load_verb_description(verb_name):
@@ -184,10 +186,10 @@ def catkin_main(sysargs):
 
     # Check for version
     if '--version' in sysargs:
-        print('catkin_tools {} (C) 2014-{} Open Source Robotics Foundation'.format(
-            pkg_resources.get_distribution('catkin_tools').version,
-            date.today().year)
+        print(
+            f"catkin_tools {pkg_resources.get_distribution('catkin_tools').version} (C) 2014-{date.today().year} Open Source Robotics Foundation"
         )
+
         print('catkin_tools is released under the Apache License,'
               ' Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)')
         print('---')
@@ -210,7 +212,7 @@ def catkin_main(sysargs):
 
     # Check for --list-aliases
     for arg in sysargs:
-        if arg == '--list-aliases' or arg == '-a':
+        if arg in ['--list-aliases', '-a']:
             for alias in sorted(list(verb_aliases.keys())):
                 print("{0}: {1}".format(alias, ' '.join([cmd_quote(aarg) for aarg in verb_aliases[alias]])))
             sys.exit(0)

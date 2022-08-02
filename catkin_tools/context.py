@@ -81,27 +81,32 @@ class Context(object):
     @classmethod
     def _create_space_methods(cls, space):
         def space_abs_getter(self):
-            return getattr(self, '__%s_space_abs' % space)
+            return getattr(self, f'__{space}_space_abs')
 
         def space_getter(self):
-            return getattr(self, '__%s_space' % space)
+            return getattr(self, f'__{space}_space')
 
         def space_setter(self, value):
             if self.__locked:
                 raise RuntimeError("Setting of context members is not allowed while locked.")
-            setattr(self, '__%s_space' % space, value)
-            setattr(self, '__%s_space_abs' % space, os.path.realpath(os.path.join(self.__workspace, value)))
+            setattr(self, f'__{space}_space', value)
+            setattr(
+                self,
+                f'__{space}_space_abs',
+                os.path.realpath(os.path.join(self.__workspace, value)),
+            )
+
 
         def space_exists(self):
             """
             Returns true if the space exists.
             """
-            space_abs = getattr(self, '__%s_space_abs' % space)
+            space_abs = getattr(self, f'__{space}_space_abs')
             return os.path.exists(space_abs) and os.path.isdir(space_abs)
 
-        setattr(cls, '%s_space' % space, property(space_getter, space_setter))
-        setattr(cls, '%s_space_abs' % space, property(space_abs_getter))
-        setattr(cls, '%s_space_exists' % space, space_exists)
+        setattr(cls, f'{space}_space', property(space_getter, space_setter))
+        setattr(cls, f'{space}_space_abs', property(space_abs_getter))
+        setattr(cls, f'{space}_space_exists', space_exists)
 
     @classmethod
     def setup_space_keys(cls):
@@ -117,7 +122,7 @@ class Context(object):
 
         for entry_point in iter_entry_points(group=cls.CATKIN_SPACES_GROUP):
             ep_dict = entry_point.load()
-            cls.STORED_KEYS.append(entry_point.name + '_space')
+            cls.STORED_KEYS.append(f'{entry_point.name}_space')
             cls.SPACES[entry_point.name] = ep_dict
             cls._create_space_methods(entry_point.name)
 
@@ -258,7 +263,7 @@ class Context(object):
         files = {}
 
         def save_in_file(file, key, value):
-            if file in files.keys():
+            if file in files:
                 files[file][key] = value
             else:
                 files[file] = {key: value}
@@ -361,14 +366,14 @@ class Context(object):
         # Validation is done on assignment
         self.workspace = workspace
 
-        self.extend_path = extend_path if extend_path else None
+        self.extend_path = extend_path or None
         self.key_origins = key_origins
 
         self.profile = profile
 
         # Handle *space assignment and defaults
         for space, space_dict in Context.SPACES.items():
-            key_name = space + '_space'
+            key_name = f'{space}_space'
             default = space_dict['default']
             value = kwargs.pop(key_name, default)
             if value == default and space_suffix and space != 'source':
@@ -376,8 +381,8 @@ class Context(object):
             setattr(self, key_name, value)
 
         # Check for unhandled context options
-        if len(kwargs) > 0:
-            print('Warning: Unhandled config context options: {}'.format(kwargs), file=sys.stderr)
+        if kwargs:
+            print(f'Warning: Unhandled config context options: {kwargs}', file=sys.stderr)
 
         self.destdir = os.environ['DESTDIR'] if 'DESTDIR' in os.environ else None
 
@@ -391,7 +396,7 @@ class Context(object):
         self.licenses = licenses or ['TODO']
 
         # Handle build options
-        self.devel_layout = devel_layout if devel_layout else 'linked'
+        self.devel_layout = devel_layout or 'linked'
         self.install = install
         self.isolate_install = isolate_install
 
@@ -448,17 +453,25 @@ class Context(object):
                           "target environment (env.sh) does not provide 'CMAKE_PREFIX_PATH'" % self.extend_path))
                 print(extended_env)
                 sys.exit(1)
-        else:
-            # Get the current CMAKE_PREFIX_PATH
-            if 'CMAKE_PREFIX_PATH' in os.environ:
-                split_result_cmake_prefix_path = os.environ['CMAKE_PREFIX_PATH'].split(':')
-                if len(split_result_cmake_prefix_path) > 1 and (
-                        (not self.install and split_result_cmake_prefix_path[0] == self.devel_space_abs) or
-                        (self.install and split_result_cmake_prefix_path[0] == self.install_space_abs)):
-
-                    self.env_cmake_prefix_path = ':'.join(split_result_cmake_prefix_path[1:])
-                else:
-                    self.env_cmake_prefix_path = os.environ.get('CMAKE_PREFIX_PATH', '').rstrip(':')
+        elif 'CMAKE_PREFIX_PATH' in os.environ:
+            split_result_cmake_prefix_path = os.environ['CMAKE_PREFIX_PATH'].split(':')
+            self.env_cmake_prefix_path = (
+                ':'.join(split_result_cmake_prefix_path[1:])
+                if len(split_result_cmake_prefix_path) > 1
+                and (
+                    (
+                        not self.install
+                        and split_result_cmake_prefix_path[0]
+                        == self.devel_space_abs
+                    )
+                    or (
+                        self.install
+                        and split_result_cmake_prefix_path[0]
+                        == self.install_space_abs
+                    )
+                )
+                else os.environ.get('CMAKE_PREFIX_PATH', '').rstrip(':')
+            )
 
         # Add warning for empty extend path
         if (self.devel_layout == 'linked' and
@@ -471,9 +484,12 @@ class Context(object):
                 "requires the `catkin` CMake package in your source space "
                 "in order to be built.")]
 
-        # Add warnings based on conflicing CMAKE_PREFIX_PATH
         elif self.cached_cmake_prefix_path and self.extend_path:
-            ep_not_in_lcpp = any([self.extend_path in p for p in self.cached_cmake_prefix_path.split(':')])
+            ep_not_in_lcpp = any(
+                self.extend_path in p
+                for p in self.cached_cmake_prefix_path.split(':')
+            )
+
             if not ep_not_in_lcpp:
                 self.warnings += [clr(
                     "Your workspace is configured to explicitly extend a "
@@ -489,8 +505,8 @@ class Context(object):
                     % (self.cached_cmake_prefix_path, self.env_cmake_prefix_path))]
 
         elif self.env_cmake_prefix_path and\
-                self.cached_cmake_prefix_path and\
-                self.env_cmake_prefix_path != self.cached_cmake_prefix_path:
+                    self.cached_cmake_prefix_path and\
+                    self.env_cmake_prefix_path != self.cached_cmake_prefix_path:
             self.warnings += [clr(
                 "Your current environment's CMAKE_PREFIX_PATH is different "
                 "from the cached CMAKE_PREFIX_PATH used the last time this "
@@ -577,7 +593,7 @@ class Context(object):
 
         install_layout = 'None'
         if self.__install:
-            install_layout = 'merged' if not self.__isolate_install else 'isolated'
+            install_layout = 'isolated' if self.__isolate_install else 'merged'
 
         def quote(argument):
             # Distinguish in the printout if space separates two arguments or if we
@@ -871,7 +887,7 @@ class Context(object):
         elif self.link_devel:
             return os.path.join(self.private_devel_path, package.name)
         else:
-            raise ValueError('Unkown devel space layout: {}'.format(self.devel_layout))
+            raise ValueError(f'Unkown devel space layout: {self.devel_layout}')
 
     def package_install_space(self, package):
         """Get the install directory for a specific package.
@@ -883,7 +899,7 @@ class Context(object):
         elif self.isolate_install:
             return os.path.join(self.install_space_abs, package.name)
         else:
-            raise ValueError('Unkown install space layout: {}'.format(self.devel_layout))
+            raise ValueError(f'Unkown install space layout: {self.devel_layout}')
 
     def package_dest_path(self, package):
         """Get the intermediate destination into which a specific package is built."""
@@ -900,11 +916,10 @@ class Context(object):
 
         if self.install:
             return self.package_install_space(package)
+        if self.link_devel:
+            return self.devel_space_abs
         else:
-            if self.link_devel:
-                return self.devel_space_abs
-            else:
-                return self.package_devel_space(package)
+            return self.package_devel_space(package)
 
     def metadata_path(self):
         """Get the path to the metadata directory for this profile."""

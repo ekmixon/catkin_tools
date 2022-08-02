@@ -155,8 +155,11 @@ def main(opts):
         else:
             try:
                 packages = find_packages(path, warnings=[])
-                catkin_package = [pkg_path for pkg_path, p in packages.items() if p.name == package]
-                if catkin_package:
+                if catkin_package := [
+                    pkg_path
+                    for pkg_path, p in packages.items()
+                    if p.name == package
+                ]:
                     path = os.path.join(path, catkin_package[0])
                 else:
                     sys.exit(clr("@{rf}ERROR: Could not locate a package named '%s' in path '%s'@|" %
